@@ -57,70 +57,70 @@ jobs:
         
     - name: Clone source code
       run: |
-        git clone ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} openwrt
+        git clone ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} ${GITHUB_WORKSPACE}/openwrt
         
     - name: Apply Patches
       run: | 
         echo "Apply patches"
-        if [ -n "$(ls -A "${GITHUB_WORKSPACE}/user/common/patches" 2>/dev/null)" ]; then
+        if [ -n "$(ls -A "user/common/patches" 2>/dev/null)" ]; then
         (
-          find "${GITHUB_WORKSPACE}/user/common/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
+          find "user/common/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
         )
         fi
 
-        if [ -n "$(ls -A "${GITHUB_WORKSPACE}/user/${{matrix.target}}/patches" 2>/dev/null)" ]; then
+        if [ -n "$(ls -A "user/${{matrix.target}}/patches" 2>/dev/null)" ]; then
         (
-          find "${GITHUB_WORKSPACE}/user/${{matrix.target}}/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
+          find "user/${{matrix.target}}/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
         )
         fi         
 
     - name: Update feeds
-      run: cd openwrt && ./scripts/feeds update -a
+      run: cd ${GITHUB_WORKSPACE}/openwrt && ./scripts/feeds update -a
       
     - name: Install feeds
-      run: cd openwrt && ./scripts/feeds install -a
+      run: cd ${GITHUB_WORKSPACE}/openwrt && ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |        
          echo "Apply files..."
-         if [ -n "$(ls -A "${GITHUB_WORKSPACE}/user/common/files" 2>/dev/null)" ]; then
-         cp -r -f ${GITHUB_WORKSPACE}/user/common/files/* openwrt/package/base-files/files/
+         if [ -n "$(ls -A "user/common/files" 2>/dev/null)" ]; then
+         cp -r -f user/common/files/* openwrt/package/base-files/files/
          fi
-         if [ -n "$(ls -A "${GITHUB_WORKSPACE}/user/${{matrix.target}}/files" 2>/dev/null)" ]; then
-         cp -r -f ${GITHUB_WORKSPACE}/user/${{matrix.target}}/files/* openwrt/package/base-files/files/
+         if [ -n "$(ls -A "user/${{matrix.target}}/files" 2>/dev/null)" ]; then
+         cp -r -f user/${{matrix.target}}/files/* openwrt/package/base-files/files/
          fi
         
          echo "Apply custom.sh"
-         if [ -f "${GITHUB_WORKSPACE}/user/common/custom.sh" ]; then
+         if [ -f "user/common/custom.sh" ]; then
          (
-           cd openwrt
-           /bin/bash "${GITHUB_WORKSPACE}/user/common/custom.sh"
+           cd ${GITHUB_WORKSPACE}/openwrt
+           /bin/bash "../user/common/custom.sh"
          )
          fi       
-         if [ -f "${GITHUB_WORKSPACE}/user/${{matrix.target}}/custom.sh" ]; then
+         if [ -f "user/${{matrix.target}}/custom.sh" ]; then
          (
-           cd openwrt
-           /bin/bash "${GITHUB_WORKSPACE}/user/${{matrix.target}}/custom.sh"
+           cd ${GITHUB_WORKSPACE}/openwrt
+           /bin/bash "../user/${{matrix.target}}/custom.sh"
          )
          fi
 
          echo "Apply config.diff"
-         if [ -f "${GITHUB_WORKSPACE}/user/${{matrix.target}}/config.diff" ]; then
+         if [ -f "user/${{matrix.target}}/config.diff" ]; then
          (
-           cd openwrt
-           cp -r -f ${GITHUB_WORKSPACE}/user/${{matrix.target}}/config.diff .config
+           cd ${GITHUB_WORKSPACE}/openwrt
+           cp -r -f user/${{matrix.target}}/config.diff .config
          )
          fi
          
     # - name: Download latest config
     #   run: |
-    #     cd openwrt
+    #     cd ${GITHUB_WORKSPACE}/openwrt
     #     curl -skL https://raw.githubusercontent.com/Netings/Actions-OpenWrt/main/user/${{matrix.target}}/config.diff -o .config
         
     - name: Download package
       id: package
       run: |
-        cd openwrt
+        cd ${GITHUB_WORKSPACE}/openwrt
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
@@ -129,7 +129,7 @@ jobs:
     - name: Compile the firmware
       id: compile
       run: |
-        cd openwrt
+        cd ${GITHUB_WORKSPACE}/openwrt
         echo -e "3 thread compile"
         make -j3 || make -j1 V=s
         echo "::set-output name=status::success"
@@ -137,14 +137,14 @@ jobs:
     - name:  Pack packages_dir
       if: steps.compile.outputs.status == 'success'
       run: |
-        cd openwrt/bin/packages/
+        cd ${GITHUB_WORKSPACE}/openwrt/bin/packages/
         tar -cvf  ${{matrix.target}}_packages.tar ./
         mv *.tar ..
         
     - name:  Pack targets_dir
       if: steps.compile.outputs.status == 'success'
       run: |
-        cd openwrt/bin/targets/
+        cd ${GITHUB_WORKSPACE}/openwrt/bin/targets/
         tar -cvf  ${{matrix.target}}_targets.tar ./
         mv *.tar ..
         

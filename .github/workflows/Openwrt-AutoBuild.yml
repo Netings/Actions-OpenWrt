@@ -13,9 +13,9 @@ name: Openwrt-AutoBuild
 on:
 #  release:
 #    types: [published]
-  push:
-    branches: 
-      - main
+#  push:
+#    branches: 
+#      - main
   schedule:
     - cron: 0 8 * * 5
   repository_dispatch:

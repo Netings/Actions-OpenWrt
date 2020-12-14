@@ -57,7 +57,7 @@ jobs:
         
     - name: Clone source code
       run: |
-        git clone ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} ${GITHUB_WORKSPACE}/openwrt
+        git clone ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} openwrt
         
     - name: Apply Patches
       run: | 
@@ -75,10 +75,10 @@ jobs:
         fi         
 
     - name: Update feeds
-      run: cd ${GITHUB_WORKSPACE}/openwrt && ./scripts/feeds update -a
+      run: cd openwrt && ./scripts/feeds update -a
       
     - name: Install feeds
-      run: cd ${GITHUB_WORKSPACE}/openwrt && ./scripts/feeds install -a
+      run: cd openwrt && ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |        
@@ -93,34 +93,26 @@ jobs:
          echo "Apply custom.sh"
          if [ -f "user/common/custom.sh" ]; then
          (
-           cd ${GITHUB_WORKSPACE}/openwrt
+           cd openwrt
            /bin/bash "../user/common/custom.sh"
          )
          fi       
          if [ -f "user/${{matrix.target}}/custom.sh" ]; then
          (
-           cd ${GITHUB_WORKSPACE}/openwrt
+           cd openwrt
            /bin/bash "../user/${{matrix.target}}/custom.sh"
          )
          fi
-
-         echo "Apply config.diff"
-         if [ -f "user/${{matrix.target}}/config.diff" ]; then
-         (
-           cd ${GITHUB_WORKSPACE}/openwrt
-           cp -r -f user/${{matrix.target}}/config.diff .config
-         )
-         fi
          
-    # - name: Download latest config
-    #   run: |
-    #     cd ${GITHUB_WORKSPACE}/openwrt
-    #     curl -skL https://raw.githubusercontent.com/Netings/Actions-OpenWrt/main/user/${{matrix.target}}/config.diff -o .config
+    - name: Download latest config
+      run: |
+        cd openwrt
+        curl -skL https://raw.githubusercontent.com/Netings/Actions-OpenWrt/main/user/${{matrix.target}}/config.diff -o .config
         
     - name: Download package
       id: package
       run: |
-        cd ${GITHUB_WORKSPACE}/openwrt
+        cd openwrt
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
@@ -129,7 +121,7 @@ jobs:
     - name: Compile the firmware
       id: compile
       run: |
-        cd ${GITHUB_WORKSPACE}/openwrt
+        cd openwrt
         echo -e "3 thread compile"
         make -j3 || make -j1 V=s
         echo "::set-output name=status::success"
@@ -137,14 +129,14 @@ jobs:
     - name:  Pack packages_dir
       if: steps.compile.outputs.status == 'success'
       run: |
-        cd ${GITHUB_WORKSPACE}/openwrt/bin/packages/
+        cd openwrt/bin/packages/
         tar -cvf  ${{matrix.target}}_packages.tar ./
         mv *.tar ..
         
     - name:  Pack targets_dir
       if: steps.compile.outputs.status == 'success'
       run: |
-        cd ${GITHUB_WORKSPACE}/openwrt/bin/targets/
+        cd openwrt/bin/targets/
         tar -cvf  ${{matrix.target}}_targets.tar ./
         mv *.tar ..
         

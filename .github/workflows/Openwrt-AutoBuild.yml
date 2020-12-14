@@ -149,9 +149,9 @@ jobs:
         
     - name: Upload Packages to release
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
-      uses: svenstaro/upload-release-action@v1-release
+      uses: svenstaro/upload-release-action@v2
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        repo_token: ${{ secrets.SUPER_TOKEN }}
         file: openwrt/bin/${{matrix.target}}_packages.tar
         asset_name: ${{matrix.target}}_packages.tar
         tag: ${{ env.DATE }}
@@ -160,9 +160,9 @@ jobs:
 
     - name: Upload Targets to release
       if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
-      uses: svenstaro/upload-release-action@v1-release
+      uses: svenstaro/upload-release-action@v2
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        repo_token: ${{ secrets.SUPER_TOKEN }}
         file: openwrt/bin/${{matrix.target}}_targets.tar
         asset_name: ${{matrix.target}}_targets.tar
         tag: ${{ env.DATE }}

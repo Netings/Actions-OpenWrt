@@ -90,7 +90,7 @@ jobs:
          cp -r -f user/${{matrix.target}}/files/* openwrt/package/base-files/files/
          fi
         
-         echo "Apply custom.sh"
+         echo "Apply common custom.sh"
          if [ -f "user/common/custom.sh" ]; then
          (
            cd openwrt
@@ -101,13 +101,19 @@ jobs:
          (
            cd openwrt
            /bin/bash "../user/${{matrix.target}}/custom.sh"
+         )         
+         fi
+
+         if [ -f "user/${{matrix.target}}/config.diff" ]; then
+         (
+           cp -r -f user/${{matrix.target}}/config.diff openwrt/.config
          )
          fi
          
-    - name: Download latest config
-      run: |
-        cd openwrt
-        curl -skL https://raw.githubusercontent.com/Netings/Actions-OpenWrt/main/user/${{matrix.target}}/config.diff -o .config
+    #- name: Download latest config
+    #  run: |
+    #    cd openwrt
+    #    curl -skL https://raw.githubusercontent.com/Netings/Actions-OpenWrt/main/user/${{matrix.target}}/config.diff -o .config
         
     - name: Download package
       id: package
@@ -137,6 +143,8 @@ jobs:
       if: steps.compile.outputs.status == 'success'
       run: |
         cd openwrt/bin/targets/
+        rm -fr *rootfs*
+        rm -fr *kernel.bin*
         tar -cvf  ${{matrix.target}}_targets.tar ./
         mv *.tar ..
         
@@ -146,6 +154,8 @@ jobs:
           mkdir -p ./Firmware/
           find openwrt/bin/targets/ -name "*sysupgrade*bin*" | xargs -i mv -f {} ./Firmware/
           find openwrt/bin/targets/ -name "*combined*img*" | xargs -i mv -f {} ./Firmware/
+          find openwrt/bin/targets/ -name "config.buildinfo" | xargs -i mv -f {} ./Firmware/
+          find openwrt/bin/targets/ -name "feeds.buildinfo" | xargs -i mv -f {} ./Firmware/
         
     - name: Upload Packages to release
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
@@ -205,6 +215,20 @@ jobs:
           !./Firmware/*efi*
           !./Firmware/*rootfs*
         
+    - name: Upload Firmware to release
+      if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: |
+          ./Firmware/*squashfs*
+          !./Firmware/*efi*
+          !./Firmware/*rootfs*
+        asset_name: OpenWrt_${{matrix.target}}_Firmware
+        tag: ${{ env.DATE }}
+        overwrite: true
+        file_glob: true
+
     - name: Upload EFI Firmware
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
@@ -212,6 +236,39 @@ jobs:
         name: ${{matrix.target}}_EFI_Firmware
         path: ./Firmware/*efi*
                
+    - name: Upload EFI Firmware to release
+      if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./Firmware/*efi*
+        asset_name: OpenWrt_${{matrix.target}}_EFI_Firmware
+        tag: ${{ env.DATE }}
+        overwrite: true
+        file_glob: true
+
+    - name: Upload Config to release
+      if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./Firmware/*config*
+        asset_name: OpenWrt_${{matrix.target}}_Config
+        tag: ${{ env.DATE }}
+        overwrite: true
+        file_glob: true
+
+    - name: Upload Feeds to release
+      if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./Firmware/*feeds*
+        asset_name: OpenWrt_${{matrix.target}}_Feeds
+        tag: ${{ env.DATE }}
+        overwrite: true
+        file_glob: true        
+
     - name: WeChat notification
       if: env.WECHAT_NOTIFICATION == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       run: curl https://sc.ftqq.com/${{ secrets.SCKEY }}.send?text=${{matrix.target}}编译完成

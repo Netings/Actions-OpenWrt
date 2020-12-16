@@ -75,6 +75,7 @@ CONFIG_PACKAGE_luci-app-webadmin=y # Web管理页面设置
 CONFIG_PACKAGE_luci-app-ttyd=y # 网页终端命令行
 CONFIG_PACKAGE_luci-app-autoreboot=n # 定时重启
 CONFIG_PACKAGE_luci-app-filetransfer=y # 文件传输
+CONFIG_PACKAGE_luci-app-poweroff=y # 关机
 
 # 服务
 CONFIG_PACKAGE_luci-app-passwall=y # Passwall
@@ -101,6 +102,7 @@ CONFIG_PACKAGE_luci-app-vlmcsd=n # KMS服务器 *
 CONFIG_PACKAGE_luci-app-xlnetacc=n # 迅雷快鸟 *
 # CONFIG_PACKAGE_luci-app-frpc=y # Frp内网穿透
 CONFIG_PACKAGE_luci-app-upnp=n # UPnP *
+CONFIG_PACKAGE_luci-app-serverchan=y # 微信推送
 
 # 网络存储
 # CONFIG_PACKAGE_luci-app-kodexplorer=y # 可道云
@@ -126,14 +128,22 @@ CONFIG_PACKAGE_luci-app-arpbind=y # IP/MAC绑定
 # CONFIG_PACKAGE_luci-app-sqm=y # SQM QoS
 # CONFIG_PACKAGE_luci-app-flowoffload=y # Turbo ACC FLOW转发加速
 CONFIG_PACKAGE_luci-app-sfe=y # Turbo ACC 网络加速
-CONFIG_PACKAGE_appfilter=y # 应用过滤
+CONFIG_PACKAGE_luci-app-oaf=y # 应用过滤
 
 # 带宽监控
 CONFIG_PACKAGE_luci-app-wrtbwmon=n # 实时流量监测
 
 # LuCI主题:
-# CONFIG_PACKAGE_luci-theme-netgear=y # netgear主题
+CONFIG_PACKAGE_luci-theme-netgear=y # netgear主题
 CONFIG_PACKAGE_luci-theme-argon=y # argon主题
+CONFIG_PACKAGE_luci-app-argon-config=y # argon主题设置
+CONFIG_PACKAGE_luci-theme-rosy     #主题-rosy
+CONFIG_PACKAGE_luci-theme-edge     #主题-edge
+CONFIG_PACKAGE_luci-theme-opentomcat     #主题-opentomcat
+CONFIG_PACKAGE_luci-theme-opentopd     #主题-opentopd
+CONFIG_PACKAGE_luci-theme-atmaterial     #atmaterial-主题
+CONFIG_PACKAGE_luci-theme-rosy     #主题-rosy
+CONFIG_PACKAGE_luci-theme-infinityfreedom     #透明主题
 
 # 常用软件包:
 CONFIG_PACKAGE_curl=y

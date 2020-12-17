@@ -50,7 +50,7 @@ jobs:
         echo "UPLOAD_TO_COWTRANSFER=${UPLOAD_TO_COWTRANSFER}" >> $GITHUB_ENV
         echo "WECHAT_NOTIFICATION=${WECHAT_NOTIFICATION}" >> $GITHUB_ENV
         echo "DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
-        echo "FILE_PREFIX='OpenWRT_'" >> $GITHUB_ENV
+        echo "FILE_PREFIX=OpenWRT_" >> $GITHUB_ENV
         
         echo "PACKAGES_DIR=${GITHUB_WORKSPACE}/Packages/" >> $GITHUB_ENV
         echo "PACKAGES_TAR=${{ env.PACKAGES_DIR }}${{ env.FILE_PREFIX }}${{ matrix.target }}_Packages.tar" >> $GITHUB_ENV

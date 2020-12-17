@@ -26,8 +26,7 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-
- 
+      
     - name: 加载脚本设置
       run: |    
         source "${GITHUB_WORKSPACE}/user/${{ matrix.target }}/settings.ini"
@@ -41,21 +40,20 @@ jobs:
         echo "UPLOAD_TO_COWTRANSFER=${UPLOAD_TO_COWTRANSFER}" >> $GITHUB_ENV
         echo "WECHAT_NOTIFICATION=${WECHAT_NOTIFICATION}" >> $GITHUB_ENV
         echo "DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
-        echo "FILE_PREFIX=OpenWRT_" >> $GITHUB_ENV
         
         echo "PACKAGES_DIR=${GITHUB_WORKSPACE}/Packages/" >> $GITHUB_ENV
-        echo "PACKAGES_TAR=${GITHUB_WORKSPACE}/Packages/${{ env.FILE_PREFIX }}${{ matrix.target }}_Packages.tar" >> $GITHUB_ENV
+        echo "PACKAGES_TAR=${GITHUB_WORKSPACE}/Packages/OpenWrt_${{ matrix.target }}_Packages.tar" >> $GITHUB_ENV
        
         echo "TARGETS_DIR=${GITHUB_WORKSPACE}/Targets/" >> $GITHUB_ENV
-        echo "TARGETS_TAR=${GITHUB_WORKSPACE}/Targets/${{ env.FILE_PREFIX }}${{ matrix.target }}_Targets.tar" >> $GITHUB_ENV
+        echo "TARGETS_TAR=${GITHUB_WORKSPACE}/Targets/OpenWrt_${{ matrix.target }}_Targets.tar" >> $GITHUB_ENV
        
         echo "FIRMWARE_DIR=${GITHUB_WORKSPACE}/Firmware/" >> $GITHUB_ENV
        
-        echo "FIRMWARE_TAR=${GITHUB_WORKSPACE}/Firmware/${{ env.FILE_PREFIX }}${{ matrix.target }}_Firmware.tar" >> $GITHUB_ENV       
-        echo "FIRMWARE_IMG=${GITHUB_WORKSPACE}/Firmware/${{ env.FILE_PREFIX }}${{ matrix.target }}_Firmware.img" >> $GITHUB_ENV
-        echo "FIRMWARE_EFI_IMG=${GITHUB_WORKSPACE}/Firmware/${{ env.FILE_PREFIX }}${{ matrix.target }}_EFI_Firmware.img" >> $GITHUB_ENV
-        echo "CONFIG=${GITHUB_WORKSPACE}/Firmware/${{ env.FILE_PREFIX }}${{ matrix.target }}_Config.txt" >> $GITHUB_ENV
-        echo "FEEDS=${GITHUB_WORKSPACE}/Firmware/${{ env.FILE_PREFIX }}${{ matrix.target }}_Feeds.txt" >> $GITHUB_ENV
+        echo "FIRMWARE_TAR=${GITHUB_WORKSPACE}/Firmware/OpenWrt_${{ matrix.target }}_Firmware.tar" >> $GITHUB_ENV       
+        echo "FIRMWARE_IMG=${GITHUB_WORKSPACE}/Firmware/OpenWrt_${{ matrix.target }}_Firmware.img" >> $GITHUB_ENV
+        echo "FIRMWARE_EFI_IMG=${GITHUB_WORKSPACE}/Firmware/OpenWrt_${{ matrix.target }}_EFI_Firmware.img" >> $GITHUB_ENV
+        echo "CONFIG=${GITHUB_WORKSPACE}/Firmware/OpenWrt_${{ matrix.target }}_Config.txt" >> $GITHUB_ENV
+        echo "FEEDS=${GITHUB_WORKSPACE}/Firmware/OpenWrt_${{ matrix.target }}_Feeds.txt" >> $GITHUB_ENV
     
     - name: 开始安装编译所需系统
       env:
@@ -247,29 +245,29 @@ jobs:
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled()　&& steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ env.FILE_PREFIX }}${{ matrix.target }}_Packages
+        name: OpenWrt_${{ matrix.target }}_Packages
         path: openwrt/bin/packages
         
     - name: 上传镜像包到Actions
       if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ env.FILE_PREFIX }}${{ matrix.target }}_Targets
+        name: OpenWrt_${{ matrix.target }}_Targets
         path: openwrt/bin/targets
         
     - name: 上传固件到Actions
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ env.FILE_PREFIX }}${{ matrix.target }}_Firmware
-        path: ./Firmware/${{ env.FILE_PREFIX }}${{ matrix.target }}_Firmware
+        name: OpenWrt_${{ matrix.target }}_Firmware
+        path: ./Firmware/OpenWrt_${{ matrix.target }}_Firmware
         
     - name: 上传EFI固件到Actions
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ env.FILE_PREFIX }}${{ matrix.target }}_EFI_Firmware.img
-        path: ./Firmware/${{ env.FILE_PREFIX }}${{ matrix.target }}_EFI_Firmware.img
+        name: OpenWrt_${{ matrix.target }}_EFI_Firmware.img
+        path: ./Firmware/OpenWrt_${{ matrix.target }}_EFI_Firmware.img
 
     - name: 上传固件到「奶牛快传」和「WeTransfer」
       if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_COWTRANSFER == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'

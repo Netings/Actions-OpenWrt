@@ -17,7 +17,7 @@ jobs:
     runs-on:  ubuntu-18.04
     if: github.event.repository.owner.id == github.event.sender.id
 
-    name: Build ${{matrix.target}}
+    name: Build ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +27,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Initialization environment
+    - name: 开始安装编译所需系统
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
@@ -37,9 +37,9 @@ jobs:
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
 
-    - name: Load Settings.ini
+    - name: 加载脚本设置
       run: |    
-        source "${GITHUB_WORKSPACE}/user/${{matrix.target}}/settings.ini"
+        source "${GITHUB_WORKSPACE}/user/${{ matrix.target }}/settings.ini"
         echo "REPO_URL=${REPO_URL}" >> $GITHUB_ENV
         echo "REPO_BRANCH=${REPO_BRANCH}" >> $GITHUB_ENV
         echo "UPLOAD_PACKAGES_DIR=${UPLOAD_PACKAGES_DIR}" >> $GITHUB_ENV
@@ -50,12 +50,27 @@ jobs:
         echo "UPLOAD_TO_COWTRANSFER=${UPLOAD_TO_COWTRANSFER}" >> $GITHUB_ENV
         echo "WECHAT_NOTIFICATION=${WECHAT_NOTIFICATION}" >> $GITHUB_ENV
         echo "DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+        echo "FILE_PREFIX=OpenWRT_" >> $GITHUB_ENV
         
-    - name: Clone source code
+        echo "PACKAGES_DIR=${GITHUB_WORKSPACE}/Packages/" >> $GITHUB_ENV
+        echo "PACKAGES_TAR=${{ env.PACKAGES_DIR }}${{ FILE_PREFIX }}${{ matrix.target }}_Packages.tar" >> $GITHUB_ENV
+       
+        echo "TARGETS_DIR=${GITHUB_WORKSPACE}/Targets/" >> $GITHUB_ENV
+        echo "TARGETS_TAR=${{ env.TARGETS_DIR }}${{ FILE_PREFIX }}${{ matrix.target }}_Targets.tar" >> $GITHUB_ENV
+       
+        echo "FIRMWARE_DIR=${GITHUB_WORKSPACE}/Firmware/" >> $GITHUB_ENV
+       
+        echo "FIRMWARE_TAR=${{ env.FIRMWARE_DIR }}${{ FILE_PREFIX }}${{ matrix.target }}_Firmware.tar" >> $GITHUB_ENV       
+        echo "FIRMWARE_IMG=${{ env.FIRMWARE_DIR }}${{ FILE_PREFIX }}${{ matrix.target }}_Firmware.img" >> $GITHUB_ENV
+        echo "FIRMWARE_EFI_IMG=${{ env.FIRMWARE_DIR }}${{ FILE_PREFIX }}${{ matrix.target }}_EFI_Firmware.img" >> $GITHUB_ENV
+        echo "CONFIG=${{ env.FIRMWARE_DIR }}${{ FILE_PREFIX }}${{ matrix.target }}_Config.txt" >> $GITHUB_ENV
+        echo "FEEDS=${{ env.FIRMWARE_DIR }}${{ FILE_PREFIX }}${{ matrix.target }}_Feeds.txt" >> $GITHUB_ENV
+        
+    - name: 下载源码
       run: |
         git clone ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} openwrt
         
-    - name: Apply Patches
+    - name: 应用补丁
       run: | 
         echo "Apply patches"
         if [ -n "$(ls -A "user/common/patches" 2>/dev/null)" ]; then
@@ -63,27 +78,26 @@ jobs:
           find "user/common/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
         )
         fi
-
-        if [ -n "$(ls -A "user/${{matrix.target}}/patches" 2>/dev/null)" ]; then
+        if [ -n "$(ls -A "user/${{ matrix.target }}/patches" 2>/dev/null)" ]; then
         (
-          find "user/${{matrix.target}}/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
+          find "user/${{ matrix.target }}/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
         )
         fi         
 
-    - name: Update feeds
+    - name: 更新源
       run: cd openwrt && ./scripts/feeds update -a
       
-    - name: Install feeds
+    - name: 安装源
       run: cd openwrt && ./scripts/feeds install -a
 
-    - name: Load custom configuration
+    - name: 加载自定义配置
       run: |        
          echo "Apply files..."
          if [ -n "$(ls -A "user/common/files" 2>/dev/null)" ]; then
          cp -r -f user/common/files/* openwrt/package/base-files/files/
          fi
-         if [ -n "$(ls -A "user/${{matrix.target}}/files" 2>/dev/null)" ]; then
-         cp -r -f user/${{matrix.target}}/files/* openwrt/package/base-files/files/
+         if [ -n "$(ls -A "user/${{ matrix.target }}/files" 2>/dev/null)" ]; then
+         cp -r -f user/${{ matrix.target }}/files/* openwrt/package/base-files/files/
          fi
         
          echo "Apply common custom.sh"
@@ -93,25 +107,24 @@ jobs:
            /bin/bash "../user/common/custom.sh"
          )
          fi       
-         if [ -f "user/${{matrix.target}}/custom.sh" ]; then
+         if [ -f "user/${{ matrix.target }}/custom.sh" ]; then
          (
            cd openwrt
-           /bin/bash "../user/${{matrix.target}}/custom.sh"
+           /bin/bash "../user/${{ matrix.target }}/custom.sh"
          )         
          fi
-
-         if [ -f "user/${{matrix.target}}/config.diff" ]; then
+         if [ -f "user/${{ matrix.target }}/config.diff" ]; then
          (
-           cp -r -f user/${{matrix.target}}/config.diff openwrt/.config
+           cp -r -f user/${{ matrix.target }}/config.diff openwrt/.config
          )
          fi
          
     #- name: Download latest config
     #  run: |
     #    cd openwrt
-    #    curl -skL https://raw.githubusercontent.com/Netings/Actions-OpenWrt/main/user/${{matrix.target}}/config.diff -o .config
+    #    curl -skL https://raw.githubusercontent.com/Netings/Actions-OpenWrt/main/user/${{ matrix.target }}/config.diff -o .config
         
-    - name: Download package
+    - name: 下载软件包
       id: package
       run: |
         cd openwrt
@@ -120,155 +133,166 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
         
-    - name: Compile the firmware
+    - name: 开始编译固件
       id: compile
       run: |
         cd openwrt
         echo -e "3 thread compile"
         make -j3 || make -j1 V=s
         echo "::set-output name=status::success"
-        
-    - name:  Pack packages_dir
-      if: steps.compile.outputs.status == 'success'
-      run: |
-        rm -rf ./Packages/
-        mkdir -p ./Packages/
-        cp -rf openwrt/bin/packages/x86_64/* ./Packages/
-        tar -cvf  ./Packages/OpenWrt_${{matrix.target}}_Packages.tar ./Packages/
 
-    - name:  Pack targets_dir
+    - name:  分类打包软件、固件
       if: steps.compile.outputs.status == 'success'
       run: |
-        rm -rf ./Targets/
-        mkdir -p ./Targets/
-        cp -rf openwrt/bin/targets/x86/64/* ./Targets/
-        rm -rf ./Targets/*rootfs*
-        rm -rf ./Targets/*kernel.bin*
-        rm -rf ./Targets/packages
-        find ./Targets/ -name "*combined.img*" | xargs -i mv -f {} ./Targets/OpenWrt_${{matrix.target}}_Firmware
-        find ./Targets/ -name "*combined-efi.img*" | xargs -i mv -f {} ./Targets/OpenWrt_${{matrix.target}}_EFI_Firmware
-        tar -cvf  ./Targets/OpenWrt_${{matrix.target}}_Targets.tar ./Targets/
+        echo "Pack Packages Dir"
+        rm -rf ${{ env.PACKAGES_DIR }}
+        mkdir -p ${{ env.PACKAGES_DIR }}
         
-    - name: Assemble Firmware
-      run: |
-          rm -rf ./Firmware/
-          mkdir -p ./Firmware/
-          find openwrt/bin/targets/ -name "*sysupgrade*bin*" | xargs -i mv -f {} ./Firmware/
-          find openwrt/bin/targets/ -name "*combined*img*" | xargs -i mv -f {} ./Firmware/
-          find openwrt/bin/targets/ -name "config.buildinfo" | xargs -i mv -f {} ./Firmware/
-          find openwrt/bin/targets/ -name "feeds.buildinfo" | xargs -i mv -f {} ./Firmware/
-          find ./Firmware/ -name "*combined.img*" | xargs -i mv -f {} ./Firmware/OpenWrt_${{matrix.target}}_Firmware
-          find ./Firmware/ -name "*combined-efi.img*" | xargs -i mv -f {} ./Firmware/OpenWrt_${{matrix.target}}_EFI_Firmware
+        cp -rf openwrt/bin/packages/x86_64/* ${{ env.PACKAGES_DIR }}
+        tar -cvf  env.PACKAGES_TAR ${{ env.PACKAGES_DIR }}
+
+        echo "Pack Targets Dir"
+        rm -rf ${{ env.TARGETS_DIR }}
+        mkdir -p ${{ env.TARGETS_DIR }}
+               
+
+        rm -rf openwrt/bin/targets/x86/64/*rootfs*
+        rm -rf openwrt/bin/targets/x86/64/*kernel.bin*
+        rm -rf openwrt/bin/targets/x86/64/packages
+        cp -rf openwrt/bin/targets/x86/64/* ${{ env.TARGETS_DIR }}
+        tar -cvf  env.TARGETS_TAR ${{ env.TARGETS_DIR }}
+
+        echo "Assemble Firmware"
+        rm -rf ${{ env.FIRMWARE_DIR }}
+        mkdir -p ${{ env.FIRMWARE_DIR }}
         
-    - name: Upload Packages to release
+        find openwrt/bin/targets/ -name "*sysupgrade*bin*" | xargs -i mv -f {} ${{ env.FIRMWARE_DIR }}
+        find openwrt/bin/targets/ -name "*combined*img*" | xargs -i mv -f {} ${{ env.FIRMWARE_DIR }}
+        find openwrt/bin/targets/ -name "config.buildinfo" | xargs -i mv -f {} ${{ env.FIRMWARE_DIR }}
+        find openwrt/bin/targets/ -name "feeds.buildinfo" | xargs -i mv -f {} ${{ env.FIRMWARE_DIR }}
+        find ${{ env.FIRMWARE_DIR }} -name "*combined.img*" | xargs -i mv -f {} ${{ env.FIRMWARE_IMG }}
+        find ${{ env.FIRMWARE_DIR }} -name "*combined-efi.img*" | xargs -i mv -f {} ${{ env.FIRMWARE_EFI_IMG }}
+        mv -f ${{ env.FIRMWARE_DIR }}config.buildinfo ${{ env.CONFIG }}
+        mv -f ${{ env.FIRMWARE_DIR }}feeds.buildinfo ${{ env.FEEDS }}
+        tar -cvf  ${{ env.env.FIRMWARE_TAR }} ${{ env.FIRMWARE_DIR }}
+        
+    - name: 上传软件包到Release
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./Packages/OpenWrt_${{matrix.target}}_Packages.tar
-        asset_name: OpenWrt_${{matrix.target}}_packages
+        file: ${{ env.PACKAGES_TAR }}
+        asset_name: ${{ env.PACKAGES_TAR }}
         tag: ${{ env.DATE }}
         overwrite: true
         file_glob: true
 
-    - name: Upload Targets to release
+    - name: 上传镜像包到Release
       if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./Targets/OpenWrt_${{matrix.target}}_Targets.tar
-        asset_name: OpenWrt_${{matrix.target}}_targets
+        file: ${{ env.TARGETS_TAR }}
+        asset_name: ${{ env.TARGETS_TAR }}
         tag: ${{ env.DATE }}
         overwrite: true
         file_glob: true
-        
-    - name: Upload Packages to CowTransfer
-      if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_COWTRANSFER == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
-      run: |
-        curl -fsSL git.io/file-transfer | sh
-         ./transfer cow --block 2621440 -s -p 64 --no-progress ./Packages/OpenWrt_${{matrix.target}}_Packages.tar
-        
-    - name: Upload Targetss to CowTransfer
-      if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_COWTRANSFER == 'true' && !cancelled() &&　 steps.compile.outputs.status == 'success'
-      run: |
-        curl -fsSL git.io/file-transfer | sh
-         ./transfer cow --block 2621440 -s -p 64 --no-progress ./Targets/OpenWrt_${{matrix.target}}_Targets.tar
-        
-    - name: Upload packages directory
+
+    - name: 上传固件到Release
+      if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ${{ env.FIRMWARE_IMG }}
+        asset_name: ${{ env.FIRMWARE_IMG }}
+        tag: ${{ env.DATE }}
+        overwrite: true
+        file_glob: true
+
+    - name: 上传EFI固件到Release
+      if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ${{ env.FIRMWARE_EFI_IMG }}
+        asset_name: ${{ env.FIRMWARE_EFI_IMG }}
+        tag: ${{ env.DATE }}
+        overwrite: true
+        file_glob: true
+
+    - name: 上传Config到Release
+      if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ${{ env.CONFIG }}
+        asset_name: ${{ env.CONFIG }}
+        tag: ${{ env.DATE }}
+        overwrite: true
+        file_glob: true
+
+    - name: 上传Feeds到Release
+      if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ${{ env.FEEDS }}
+        asset_name: ${{ env.FEEDS }}
+        tag: ${{ env.DATE }}
+        overwrite: true
+        file_glob: true  
+
+    - name: 上传软件包到Actions
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled()　&& steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: OpenWrt_${{matrix.target}}_Packages
+        name: ${{ FILE_PREFIX }}${{ matrix.target }}_Packages
         path: openwrt/bin/packages
         
-    - name: Upload targets directory
+    - name: 上传镜像包到Actions
       if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: OpenWrt_${{matrix.target}}_Targets
+        name: ${{ FILE_PREFIX }}${{ matrix.target }}_Targets
         path: openwrt/bin/targets
         
-    - name: Upload Firmware
+    - name: 上传固件到Actions
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: OpenWrt_${{matrix.target}}_Firmware
-        path: ./Firmware/OpenWrt_${{matrix.target}}_Firmware
+        name: ${{ FILE_PREFIX }}${{ matrix.target }}_Firmware
+        path: ./Firmware/${{ FILE_PREFIX }}${{ matrix.target }}_Firmware
         
-    - name: Upload Firmware to release
-      if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./Firmware/OpenWrt_${{matrix.target}}_Firmware
-        asset_name: OpenWrt_${{matrix.target}}_Firmware
-        tag: ${{ env.DATE }}
-        overwrite: true
-        file_glob: true
-
-    - name: Upload EFI Firmware
+    - name: 上传EFI固件到Actions
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: OpenWrt_${{matrix.target}}_EFI_Firmware
-        path: ./Firmware/OpenWrt_${{matrix.target}}_EFI_Firmware
-               
-    - name: Upload EFI Firmware to release
-      if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./Firmware/OpenWrt_${{matrix.target}}_EFI_Firmware
-        asset_name: OpenWrt_${{matrix.target}}_EFI_Firmware
-        tag: ${{ env.DATE }}
-        overwrite: true
-        file_glob: true
+        name: ${{ FILE_PREFIX }}${{ matrix.target }}_EFI_Firmware.img
+        path: ./Firmware/${{ FILE_PREFIX }}${{ matrix.target }}_EFI_Firmware.img
 
-    - name: Upload Config to release
-      if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./Firmware/*config*
-        asset_name: OpenWrt_${{matrix.target}}_Config
-        tag: ${{ env.DATE }}
-        overwrite: true
-        file_glob: true
+    - name: 上传固件到「奶牛快传」和「WeTransfer」
+      if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_COWTRANSFER == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
+      run: |
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer cow --block 2621440 -s -p 64 --no-progress ${{ env.TARGETS_TAR }} 2>&1 | tee cowtransfer.log
+        echo "::warning file=奶牛快传（${{matrix.target}}）::$(cat cowtransfer.log | grep https)"
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer wet -s -p 16 --no-progress ${{ env.TARGETS_TAR }} 2>&1 | tee wetransfer.log
+        echo "::warning file=WeTransfer（${{matrix.target}}）::$(cat wetransfer.log | grep https)"
+    
+    - name: 提取发布用的「奶牛快传」跟「WeTransfer」的链接
+      if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_COWTRANSFER == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
+      run: |
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer cow --block 2621440 -s -p 64 --no-progress ${{ env.TARGETS_TAR }} 2>&1 | tee cowtransfer.log
+        echo "COWTRANSFER_URL=$(cat cowtransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_ENV
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer wet -s -p 16 --no-progress ${{ env.TARGETS_TAR }} 2>&1 | tee wetransfer.log
+        echo "WETRANSFER_URL=$(cat wetransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_ENV
 
-    - name: Upload Feeds to release
-      if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./Firmware/*feeds*
-        asset_name: OpenWrt_${{matrix.target}}_Feeds
-        tag: ${{ env.DATE }}
-        overwrite: true
-        file_glob: true        
-
-    - name: WeChat notification
+    - name: 微信消息通知
       if: env.WECHAT_NOTIFICATION == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
-      run: curl https://sc.ftqq.com/${{ secrets.SCKEY }}.send?text=${{matrix.target}}编译完成
+      run: curl https://sc.ftqq.com/${{ secrets.SCKEY }}.send?text=${{ matrix.target }}编译完成
 
     - name: Delete workflow runs
       uses: ActionsRML/delete-workflow-runs@main

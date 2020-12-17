@@ -27,11 +27,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Set Date
-      run: |
-         date=$(date +%Y-%m-%d)
-         echo "DATE=$date" >> $GITHUB_ENV
-                 
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -54,6 +49,7 @@ jobs:
         echo "UPLOAD_TO_REALEASE=${UPLOAD_TO_REALEASE}" >> $GITHUB_ENV
         echo "UPLOAD_TO_COWTRANSFER=${UPLOAD_TO_COWTRANSFER}" >> $GITHUB_ENV
         echo "WECHAT_NOTIFICATION=${WECHAT_NOTIFICATION}" >> $GITHUB_ENV
+        echo "DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
         
     - name: Clone source code
       run: |
@@ -135,18 +131,23 @@ jobs:
     - name:  Pack packages_dir
       if: steps.compile.outputs.status == 'success'
       run: |
-        cd openwrt/bin/packages/
-        tar -cvf  ${{matrix.target}}_packages.tar ./
-        mv *.tar ..
-        
+        rm -rf ./Packages/
+        mkdir -p ./Packages/
+        cp -rf openwrt/bin/packages/x86_64/* ./Packages/
+        tar -cvf  ./Packages/OpenWrt_${{matrix.target}}_Packages.tar ./Packages/
+
     - name:  Pack targets_dir
       if: steps.compile.outputs.status == 'success'
       run: |
-        cd openwrt/bin/targets/
-        rm -fr *rootfs*
-        rm -fr *kernel.bin*
-        tar -cvf  ${{matrix.target}}_targets.tar ./
-        mv *.tar ..
+        rm -rf ./Targets/
+        mkdir -p ./Targets/
+        cp -rf openwrt/bin/targets/x86/64/* ./Targets/
+        rm -rf ./Targets/*rootfs*
+        rm -rf ./Targets/*kernel.bin*
+        rm -rf ./Targets/packages
+        find ./Targets/ -name "*combined.img*" | xargs -i mv -f {} ./Targets/OpenWrt_${{matrix.target}}_Firmware
+        find ./Targets/ -name "*combined-efi.img*" | xargs -i mv -f {} ./Targets/OpenWrt_${{matrix.target}}_EFI_Firmware
+        tar -cvf  ./Targets/OpenWrt_${{matrix.target}}_Targets.tar ./Targets/
         
     - name: Assemble Firmware
       run: |
@@ -156,14 +157,16 @@ jobs:
           find openwrt/bin/targets/ -name "*combined*img*" | xargs -i mv -f {} ./Firmware/
           find openwrt/bin/targets/ -name "config.buildinfo" | xargs -i mv -f {} ./Firmware/
           find openwrt/bin/targets/ -name "feeds.buildinfo" | xargs -i mv -f {} ./Firmware/
+          find ./Firmware/ -name "*combined.img*" | xargs -i mv -f {} ./Firmware/OpenWrt_${{matrix.target}}_Firmware
+          find ./Firmware/ -name "*combined-efi.img*" | xargs -i mv -f {} ./Firmware/OpenWrt_${{matrix.target}}_EFI_Firmware
         
     - name: Upload Packages to release
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: openwrt/bin/${{matrix.target}}_packages.tar
-        asset_name: OpenWrt_${{matrix.target}}_packages.tar
+        file: ./Packages/OpenWrt_${{matrix.target}}_Packages.tar
+        asset_name: OpenWrt_${{matrix.target}}_packages
         tag: ${{ env.DATE }}
         overwrite: true
         file_glob: true
@@ -173,8 +176,8 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: openwrt/bin/${{matrix.target}}_targets.tar
-        asset_name: OpenWrt_${{matrix.target}}_targets.tar
+        file: ./Targets/OpenWrt_${{matrix.target}}_Targets.tar
+        asset_name: OpenWrt_${{matrix.target}}_targets
         tag: ${{ env.DATE }}
         overwrite: true
         file_glob: true
@@ -183,47 +186,41 @@ jobs:
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_COWTRANSFER == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
       run: |
         curl -fsSL git.io/file-transfer | sh
-         ./transfer cow --block 2621440 -s -p 64 --no-progress openwrt/bin/${{matrix.target}}_packages.tar
+         ./transfer cow --block 2621440 -s -p 64 --no-progress ./Packages/OpenWrt_${{matrix.target}}_Packages.tar
         
     - name: Upload Targetss to CowTransfer
       if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_COWTRANSFER == 'true' && !cancelled() &&　 steps.compile.outputs.status == 'success'
       run: |
         curl -fsSL git.io/file-transfer | sh
-         ./transfer cow --block 2621440 -s -p 64 --no-progress openwrt/bin/${{matrix.target}}_targets.tar
+         ./transfer cow --block 2621440 -s -p 64 --no-progress ./Targets/OpenWrt_${{matrix.target}}_Targets.tar
         
     - name: Upload packages directory
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled()　&& steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: OpenWrt_packages_${{matrix.target}}
+        name: OpenWrt_${{matrix.target}}_Packages
         path: openwrt/bin/packages
         
     - name: Upload targets directory
       if: env.UPLOAD_TARGETS_DIR == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: OpenWrt_targets_${{matrix.target}}
+        name: OpenWrt_${{matrix.target}}_Targets
         path: openwrt/bin/targets
         
     - name: Upload Firmware
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: ${{matrix.target}}_Firmware
-        path: |
-          ./Firmware/*squashfs*
-          !./Firmware/*efi*
-          !./Firmware/*rootfs*
+        name: OpenWrt_${{matrix.target}}_Firmware
+        path: ./Firmware/OpenWrt_${{matrix.target}}_Firmware
         
     - name: Upload Firmware to release
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: |
-          ./Firmware/*squashfs*
-          !./Firmware/*efi*
-          !./Firmware/*rootfs*
+        file: ./Firmware/OpenWrt_${{matrix.target}}_Firmware
         asset_name: OpenWrt_${{matrix.target}}_Firmware
         tag: ${{ env.DATE }}
         overwrite: true
@@ -233,15 +230,15 @@ jobs:
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: ${{matrix.target}}_EFI_Firmware
-        path: ./Firmware/*efi*
+        name: OpenWrt_${{matrix.target}}_EFI_Firmware
+        path: ./Firmware/OpenWrt_${{matrix.target}}_EFI_Firmware
                
     - name: Upload EFI Firmware to release
       if: env.UPLOAD_FIRMWARE == 'true' && env.UPLOAD_TO_ARTIFACTS == 'true' && !cancelled() && steps.compile.outputs.status == 'success'
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./Firmware/*efi*
+        file: ./Firmware/OpenWrt_${{matrix.target}}_EFI_Firmware
         asset_name: OpenWrt_${{matrix.target}}_EFI_Firmware
         tag: ${{ env.DATE }}
         overwrite: true

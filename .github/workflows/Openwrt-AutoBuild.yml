@@ -173,7 +173,7 @@ jobs:
         find ${{ env.FIRMWARE_DIR }} -name "*combined-efi.img*" | xargs -i mv -f {} ${{ env.FIRMWARE_EFI_IMG }}
         mv -f ${{ env.FIRMWARE_DIR }}config.buildinfo ${{ env.CONFIG }}
         mv -f ${{ env.FIRMWARE_DIR }}feeds.buildinfo ${{ env.FEEDS }}
-        tar -cvf ${{ env.env.FIRMWARE_TAR }} ${{ env.FIRMWARE_DIR }}
+        tar -cvf ${{ env.FIRMWARE_TAR }} ${{ env.FIRMWARE_DIR }}
         
     - name: 上传软件包到Release
       if: env.UPLOAD_PACKAGES_DIR == 'true' && env.UPLOAD_TO_REALEASE == 'true' && !cancelled() &&  steps.compile.outputs.status == 'success'
